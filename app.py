@@ -23,5 +23,14 @@ if st.button("Analyze Portfolio", use_container_width=True):
         st.error("Number of tickers and amounts must match.")
     else:
         st.success(f"Analyzing {tickers}")
+
+        period = st.selectbox("Time Period", ["6mo", "1y", "2yr", "5yr"], index=1)
+
+        data = yf.download(tickers, period=period)["Close"]
+        if data.empty:
+            st.error("COunt not fetch the data, check your ticker symbols.")
+        else:
+            st.markdown("### Price History")
+            st.line_chart(data)
 else:
     st.warning("Please enter both tickers and amounts.")

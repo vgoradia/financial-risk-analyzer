@@ -14,6 +14,8 @@ st.markdown("### Enter Your Portfolio")
 tickers_input = st.text_input("Stock Tickers", placeholder="e.g. AAPL, GOOGL")
 amounts_input = st.text_input("Amount Invested per Stock ($)", placeholder="e.g. 1000,2000")
 
+period = st.selectbox("Time Period", ["6mo", "1y", "2y", "5y"], index=1)
+
 if st.button("Analyze Portfolio", use_container_width=True):
     if tickers_input and amounts_input:
         tickers = [t.strip().upper() for t in tickers_input.split(" ,")]
@@ -24,11 +26,9 @@ if st.button("Analyze Portfolio", use_container_width=True):
     else:
         st.success(f"Analyzing {tickers}")
 
-        period = st.selectbox("Time Period", ["6mo", "1y", "2yr", "5yr"], index=1)
-
         data = yf.download(tickers, period=period)["Close"]
         if data.empty:
-            st.error("COunt not fetch the data, check your ticker symbols.")
+            st.error("Could not fetch the data, check your ticker symbols.")
         else:
             st.markdown("### Price History")
             st.line_chart(data)

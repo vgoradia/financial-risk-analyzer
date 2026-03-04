@@ -30,10 +30,11 @@ Enter your stocks and investment amounts, and the dashboard instantly computes v
 ## Tech Stack
 
 - Python
-- yfinance (real-time stock data)
-- Pandas & NumPy (data processing & statistical analysis)
-- Plotly (interactive visualizations)
-- Streamlit (web app framework)
+- yfinance
+- Pandas
+- NumPy
+- Plotly 
+- Streamlit
 
 ---
 

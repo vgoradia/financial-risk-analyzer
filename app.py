@@ -118,5 +118,20 @@ if st.button("Analyze Portfolio", use_container_width=True):
                 m3.metric("Best Case - 95th Percentile", f"{percentile_95:,.0f}")  
                 st.caption("These aren't predictions, they are possibilities. This is the range of the market, simulated using historical data of returns.")
 
+                st.markdown("### Suggestions for Rebalancing")
+
+                current_weights = np.array(amounts)/ sum(amounts)
+                inverse_vol = 1 / volatility.values
+                suggested_weights = inverse_vol / inverse_vol.sum()
+
+                rebal_df = pd.DataFrame({
+                    "Ticker": tickers,
+                    "Current Weight %": (current_weights * 100).round(1),
+                    "Suggested Weight %": (suggested_weights * 100).round(1)
+                })
+
+                st.dataframe(rebal_df, hide_index=True)
+                st.caption("Suggested weights prevent risk by putting more to less volatile stocks.")
+
     else:
         st.warning("Please enter both tickers and amounts.")

@@ -81,5 +81,42 @@ if st.button("Analyze Portfolio", use_container_width=True):
                 st.plotly_chart(fig_corr, use_container_width=True)
                 st.caption("Correlation close to 1 means stocks move together, while close to -1 means they move opposite. Lower correlation yields better diversification of stocks.")
                 
+                st.markdown("### Monte Carlo Simulation")
+                st.write("Simulating 1,000 possible portfolio outcomes over the next year.")
+
+                num_simulations = 1000
+                num_days = 252
+
+                weights = np.array(amounts)/ sum(amounts)
+                portfolio_returns = returns.dot(weights)
+                mean_return = portfolio_returns.mean()
+                std_return = portfolio_returns.std()
+
+                simulations = np.zeros((num_days, num_simulations))
+                initial_value = sum(amounts)
+
+                for i in range(num_simulations):
+                    daily_returns = np.random.normal(mean_return, std_return, num_days)
+                    simulations[:, i] = initial_value * np.cumprod(1 + daily_returns)
+                
+                sim_df = pd.DataFrame(simulations)
+
+                fig_mc = go.Figure()
+                for i in range(0, num_simulations, 10):
+                    fig_mc.add_trace(go.Scatter(y=sim_df[i], mode="lines", line=dict(width=0.5, color="rgba(100,149,237,0.1)"), showlegend=False))
+                
+                fig_mc.update_layout(title="Monte Carlo Simulation - Your Portfolio Value Over 1 Year", xaxis_title="Trading Days", yaxis_title="Portfolio Value $")
+                st.plotly_chart(fig_mc, use_container_width=True)
+
+                percentile_5 = np.percentile(simulations[-1], 5)
+                percentile_50 = np.percentile(simulations[-1], 50)
+                percentile_95 = np.percentile(simulations[-1], 95)
+
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Worst Case - 5th Percentile", f"{percentile_5:,.0f}")
+                m2.metric("Expected - 50th Percentile", f"{percentile_50:,.0f}")
+                m3.metric("Best Case - 95th Percentile", f"{percentile_95:,.0f}")  
+                st.caption("These aren't predictions, they are possibilities. This is the range of the market, simulated using historical data of returns.")
+
     else:
         st.warning("Please enter both tickers and amounts.")

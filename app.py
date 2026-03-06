@@ -5,6 +5,45 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+def calculate_risk_score(volatility, max_drawdowns, corr_matrix):
+    avg_vol = volatility.mean()
+    if avg_vol < 0.15:
+        vol_score = 100
+    elif avg_vol < 0.25:
+        vol_score = 75
+    elif avg_vol < 0.35:
+        vol_score = 50
+    elif avg_vol < 0.50:
+        vol_score = 25
+    else:
+        vol_score = 10
+
+    avg_drawdown = abs(np.mean(list(max_drawdowns.values())))
+    if avg_drawdown < 0.10:
+        dd_score = 100
+    elif avg_drawdown < 0.20:
+        dd_score = 75
+    elif avg_drawdown < 0.35:
+        dd_score = 50
+    elif avg_drawdown < 0.50:
+        dd_score = 25
+    else:
+        dd_score = 10
+    
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    avg_corr = upper.stack().mean()
+    if avg_corr < 0.3:
+        corr_score = 100
+    elif avg_corr < 0.5:
+        corr_score = 75
+    elif avg_corr < 0.7:
+        corr_score = 50
+    else:
+        corr_score = 25
+
+    final_score = int((vol_score * 0.4) + (dd_score * 0.4) + (corr_score * 0.2))
+    return min(final_score, 100)
+
 st.set_page_config(page_title="Portfolio Risk Dashboard", page_icon="📈", layout="wide")
 st.title("📈 Portfolio Risk Dashboard")
 st.write("Enter your portfolio below to analyze risk, volatility, and get rebalancing suggestions.")
@@ -32,51 +71,62 @@ if st.button("Analyze Portfolio", use_container_width=True):
             if data.empty:
                 st.error("Could not fetch the data, check your ticker symbols.")
             else:
-                st.markdown("### Price History")
-                st.line_chart(data)
-                st.markdown("### Volatility Analysis")
                 returns = data.pct_change().dropna()
                 volatility = returns.std() * np.sqrt(252)
 
-                vol_df = pd.DataFrame({
-                    "Ticker": volatility.index,
-                    "Annual Volatility": (volatility.values * 100).round(2)
-                })
-
-                fig_vol = px.bar(vol_df, x="Ticker", y="Annual Volatility", title="Annualized Volatility %", color="Annual Volatility", color_continuous_scale="RdYlGn_r")
-                st.plotly_chart(fig_vol, use_container_width=True)
-
-                st.markdown("### Sharpe Ratio")
-                risk_free_rate = 0.05 / 252
-                sharpe_ratios = (returns.mean() - risk_free_rate) / returns.std()
-
-                sharpe_df = pd.DataFrame({
-                    "Ticker": sharpe_ratios.index,
-                    "Sharpe Ratio": sharpe_ratios.values.round(2)
-                })
-
-                fig_sharpe = px.bar(sharpe_df, x="Ticker", y="Sharpe Ratio", title="Sharpe Ratio by the Stock", color="Sharpe Ratio", color_continuous_scale="RdYlGn")
-                st.plotly_chart(fig_sharpe, use_container_width=True)
-                st.caption("Sharpe Ratio > 1 is pretty good, > 2 is great, and < 0 means the stock lost money relative to vulnerability.")
-
-                st.markdown("### Max Drawdown")
                 def max_drawdown(series):
                     roll_max = series.cummax()
                     drawdown = (series - roll_max) / roll_max
                     return drawdown.min()
                 
                 drawdowns = {ticker: max_drawdown(data[ticker]) for ticker in tickers}
+                corr = returns.corr()
+
+                risk_score = calculate_risk_score(volatility, drawdowns, corr)
+                color = "#28a745" if risk_score >= 70 else "#ffc107" if risk_score >= 45 else "#dc3545"
+                st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #1a1a2e, {color});
+                                border-radius: 16px; padding: 2rem; text-align: center; margin-bottom: 1.5rem;">
+                        <div style="font-size: 4rem; font-weight: 800; color: white;">
+                            {risk_score}<span style="font-size: 2rem;">/100</span>
+                        </div>
+                        <div style="font-size: 1.1rem; color: #a0c4ff;">Portfolio Safety Score</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.progress(risk_score / 100)
+
+                st.markdown("### Price History")
+                st.line_chart(data)
+
+                st.markdown("### Volatility Analysis")
+                vol_df = pd.DataFrame({
+                    "Ticker": volatility.index,
+                    "Annual Volatility": (volatility.values * 100).round(2)
+                })
+                fig_vol = px.bar(vol_df, x="Ticker", y="Annual Volatility", title="Annualized Volatility %", color="Annual Volatility", color_continuous_scale="RdYlGn_r")
+                st.plotly_chart(fig_vol, use_container_width=True)
+
+                st.markdown("### Sharpe Ratio")
+                risk_free_rate = 0.05 / 252
+                sharpe_ratios = (returns.mean() - risk_free_rate) / returns.std()
+                sharpe_df = pd.DataFrame({
+                    "Ticker": sharpe_ratios.index,
+                    "Sharpe Ratio": sharpe_ratios.values.round(2)
+                })
+                fig_sharpe = px.bar(sharpe_df, x="Ticker", y="Sharpe Ratio", title="Sharpe Ratio by the Stock", color="Sharpe Ratio", color_continuous_scale="RdYlGn")
+                st.plotly_chart(fig_sharpe, use_container_width=True)
+                st.caption("Sharpe Ratio > 1 is pretty good, > 2 is great, and < 0 means the stock lost money relative to vulnerability.")
+
+                st.markdown("### Max Drawdown")
                 drawdown_df = pd.DataFrame({
                     "Ticker": list(drawdowns.keys()),
-                    "Max Drawdown in %": [round(v * 100,2) for v in drawdowns.values()]
+                    "Max Drawdown in %": [round(v * 100, 2) for v in drawdowns.values()]
                 })
-    
                 fig_dd = px.bar(drawdown_df, x="Ticker", y="Max Drawdown in %", title="Max Drawdown by Stock", color="Max Drawdown in %", color_continuous_scale="RdYlGn")
                 st.plotly_chart(fig_dd, use_container_width=True)
-                st.caption("Max Drawdown shows the worst peak-to-trough drop. Closer to 0 would be better")
+                st.caption("Max Drawdown shows the worst peak-to-trough drop. Closer to 0 would be better.")
 
                 st.markdown("### Correlation Heatmap")
-                corr = returns.corr()
                 fig_corr = px.imshow(corr, text_auto=True, color_continuous_scale="RdYlGn", title="Stock Correlation Matrix")
                 st.plotly_chart(fig_corr, use_container_width=True)
                 st.caption("Correlation close to 1 means stocks move together, while close to -1 means they move opposite. Lower correlation yields better diversification of stocks.")
@@ -87,7 +137,7 @@ if st.button("Analyze Portfolio", use_container_width=True):
                 num_simulations = 1000
                 num_days = 252
 
-                weights = np.array(amounts)/ sum(amounts)
+                weights = np.array(amounts) / sum(amounts)
                 portfolio_returns = returns.dot(weights)
                 mean_return = portfolio_returns.mean()
                 std_return = portfolio_returns.std()
@@ -113,14 +163,25 @@ if st.button("Analyze Portfolio", use_container_width=True):
                 percentile_95 = np.percentile(simulations[-1], 95)
 
                 m1, m2, m3 = st.columns(3)
-                m1.metric("Worst Case - 5th Percentile", f"{percentile_5:,.0f}")
-                m2.metric("Expected - 50th Percentile", f"{percentile_50:,.0f}")
-                m3.metric("Best Case - 95th Percentile", f"{percentile_95:,.0f}")  
+                m1.metric("Worst Case - 5th Percentile", f"${percentile_5:,.0f}")
+                m2.metric("Expected - 50th Percentile", f"${percentile_50:,.0f}")
+                m3.metric("Best Case - 95th Percentile", f"${percentile_95:,.0f}")
                 st.caption("These aren't predictions, they are possibilities. This is the range of the market, simulated using historical data of returns.")
 
-                st.markdown("### Suggestions for Rebalancing")
+                st.markdown("### Value at Risk")
+                confidence_level = 0.95
+                portfolio_returns_series = returns.dot(weights)
+                var_95 = np.percentile(portfolio_returns_series, (1 - confidence_level) * 100)
+                var_dollar = abs(var_95 * initial_value)
 
-                current_weights = np.array(amounts)/ sum(amounts)
+                v1, v2 = st.columns(2)
+                v1.metric("Daily VaR 95% Confidence", f"${var_dollar:,.0f}")
+                v2.metric("As % of Portfolio", f"{abs(var_95 * 100):.2f}%")
+                st.caption("There is a 95% chance you won't lose more than this amount in a single day of trading.")
+
+
+                st.markdown("### Suggestions for Rebalancing")
+                current_weights = np.array(amounts) / sum(amounts)
                 inverse_vol = 1 / volatility.values
                 suggested_weights = inverse_vol / inverse_vol.sum()
 

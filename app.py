@@ -45,7 +45,7 @@ def calculate_risk_score(volatility, max_drawdowns, corr_matrix):
     final_score = int((vol_score * 0.4) + (dd_score * 0.4) + (corr_score * 0.2))
     return min(final_score, 100)
 def generate_summary(tickers, volatility, sharpe_ratios, drawdowns, var_dollar, risk_score, port_total_return, bench_total_return, benchmark):
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
     
     vol_str = ", ".join([f"{t}: {v:.1%}" for t, v in zip(tickers, volatility.values)])
     sharpe_str = ", ".join([f"{t}: {v:.2f}" for t, v in zip(tickers, sharpe_ratios.values)])

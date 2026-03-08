@@ -2,7 +2,7 @@
 
 A web-based portfolio risk analysis tool that helps everyday investors understand their risk exposure using the same statistical methods used by professional fund managers — built with Python, Pandas, NumPy, Plotly, Streamlit, and Claude AI.
 
-🔗 **Live Demo:** : https://financial-risk-analyzer-eaxmdssth9clk2jokelvx7.streamlit.app/
+🔗 **Project Link:** : https://financial-risk-analyzer-eaxmdssth9clk2jokelvx7.streamlit.app/
 
 ---
 

@@ -45,6 +45,29 @@ def calculate_risk_score(volatility, max_drawdowns, corr_matrix):
     return min(final_score, 100)
 
 st.set_page_config(page_title="Portfolio Risk Dashboard", page_icon="📈", layout="wide")
+st.markdown("""
+    <style>
+    .block-container { padding-top: 2rem; }
+    div[data-testid="metric-container"] {
+        background-color: #1e2130;
+        border-radius: 10px;
+        padding: 1rem;
+        border: 1px solid #2d3250;
+    }
+    .stButton > button {
+        background: linear-gradient(135deg, #0d6efd, #4da6ff);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #0b5ed7, #3d95ef);
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📈 Portfolio Risk Dashboard")
 st.write("Enter your portfolio below to analyze risk, volatility, and get rebalancing suggestions.")
 
@@ -54,6 +77,7 @@ tickers_input = st.text_input("Stock Tickers", placeholder="e.g. AAPL, GOOGL")
 amounts_input = st.text_input("Amount Invested per Stock ($)", placeholder="e.g. 1000,2000")
 
 period = st.selectbox("Time Period", ["6mo", "1y", "2y", "5y"], index=1)
+benchmark = st.selectbox("Benchmark", ["SPY", "QQQ", "DIA"], index=0)
 
 if st.button("Analyze Portfolio", use_container_width=True):
     if tickers_input and amounts_input:
@@ -194,5 +218,30 @@ if st.button("Analyze Portfolio", use_container_width=True):
                 st.dataframe(rebal_df, hide_index=True)
                 st.caption("Suggested weights prevent risk by putting more to less volatile stocks.")
 
+                st.markdown("### Benchmark Comparison")
+                benchmark_data = yf.download(benchmark, period=period)["Close"]
+                benchmark_returns = benchmark_data.squeeze().pct_change().dropna()
+
+                portfolio_cumulative = (1 + portfolio_returns).cumprod()
+                benchmark_cumulative = (1 + benchmark_returns).cumprod()
+
+                comparison_df = pd.DataFrame({
+                    "Portfolio": portfolio_cumulative.values,
+                    "Benchmark": benchmark_cumulative.values[:len(portfolio_cumulative)]
+                }, index=portfolio_cumulative.index)
+
+                fig_bench = px.line(comparison_df, title=f"Portfolio vs {benchmark}")
+                st.plotly_chart(fig_bench, use_container_width=True)
+
+                port_total_return = (portfolio_cumulative.iloc[-1] - 1) * 100
+                bench_total_return = (benchmark_cumulative.iloc[-1] -1) * 100
+
+                b1,b2,b3 = st.columns(3)
+                b1.metric("Portfolio Return", f"{port_total_return:.1f}%")
+                b2.metric(f"{benchmark} Return", f"{bench_total_return:.1f}%")
+                if port_total_return > bench_total_return:
+                    b3.metric("Result", "Beat It!")
+                else:
+                    b3.metric("Result", "Underperformed.")
     else:
         st.warning("Please enter both tickers and amounts.")

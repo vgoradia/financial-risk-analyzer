@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import anthropic
 
 def calculate_risk_score(volatility, max_drawdowns, corr_matrix):
     avg_vol = volatility.mean()
@@ -43,6 +44,38 @@ def calculate_risk_score(volatility, max_drawdowns, corr_matrix):
 
     final_score = int((vol_score * 0.4) + (dd_score * 0.4) + (corr_score * 0.2))
     return min(final_score, 100)
+def generate_summary(tickers, volatility, sharpe_ratios, drawdowns, var_dollar, risk_score, port_total_return, bench_total_return, benchmark):
+    client = anthropic.Anthropic()
+    
+    vol_str = ", ".join([f"{t}: {v:.1%}" for t, v in zip(tickers, volatility.values)])
+    sharpe_str = ", ".join([f"{t}: {v:.2f}" for t, v in zip(tickers, sharpe_ratios.values)])
+    drawdown_str = ", ".join([f"{t}: {v:.1%}" for t, v in drawdowns.items()])
+    
+    prompt = f"""You are a friendly financial advisor explaining a portfolio analysis to an everyday investor.
+
+Here is the portfolio data:
+- Tickers: {', '.join(tickers)}
+- Portfolio Safety Score: {risk_score}/100
+- Annualized Volatility: {vol_str}
+- Sharpe Ratios: {sharpe_str}
+- Max Drawdowns: {drawdown_str}
+- Daily Value at Risk (95%): ${var_dollar:,.0f}
+- Portfolio Return: {port_total_return:.1f}%
+- {benchmark} Return: {bench_total_return:.1f}%
+
+Write a 4-5 sentence plain English summary that:
+1. States how risky the portfolio is overall
+2. Identifies the biggest risk driver
+3. Mentions if they beat the market or not
+4. Gives 1-2 specific actionable suggestions
+Keep it conversational, clear, and helpful. No bullet points, just natural paragraphs."""
+
+    message = client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return message.content[0].text
 
 st.set_page_config(page_title="Portfolio Risk Dashboard", page_icon="📈", layout="wide")
 st.markdown("""
@@ -243,5 +276,10 @@ if st.button("Analyze Portfolio", use_container_width=True):
                     b3.metric("Result", "Beat It!")
                 else:
                     b3.metric("Result", "Underperformed.")
+
+                st.markdown("### Portfolio Summary")
+                with st.spinner("Generating a summary of your portfolio..."):
+                    summary = generate_summary(tickers, volatility,sharpe_ratios, drawdowns, var_dollar, risk_score, port_total_return, bench_total_return, benchmark)
+                st.info(summary)
     else:
         st.warning("Please enter both tickers and amounts.")

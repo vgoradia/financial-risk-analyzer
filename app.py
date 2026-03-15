@@ -77,7 +77,7 @@ Keep it conversational, clear, and helpful. No bullet points, just natural parag
     )
     return message.content[0].text
 
-st.set_page_config(page_title="Portfolio Risk Dashboard", page_icon="📈", layout="wide")
+st.set_page_config(page_title="QuantRisk", page_icon="📈", layout="wide")
 st.markdown("""
     <style>
     .block-container { padding-top: 2rem; }
@@ -101,7 +101,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📈 Portfolio Risk Dashboard")
+st.title("📈 QuantRisk")
 st.write("Enter your portfolio below to analyze risk, volatility, and get rebalancing suggestions.")
 
 st.markdown("### Enter Your Portfolio")
